@@ -1,10 +1,11 @@
 const { addonBuilder } = require("stremio-addon-sdk");
 const axios = require("axios");
+const express = require("express");
 
-// SUA LISTA M3U (substitua pelo seu link)
+// Sua lista M3U
 const M3U_URL = "https://raw.githubusercontent.com/mickaelfullStack/BellaIptv/refs/heads/main/BellaIptv.m3u";
 
-// Função para processar a lista M3U
+// Processa a lista M3U e retorna os canais
 async function parseM3U() {
     try {
         const response = await axios.get(M3U_URL);
@@ -17,27 +18,20 @@ async function parseM3U() {
             if (line.startsWith("#EXTINF")) {
                 const nameMatch = line.match(/tvg-name="([^"]+)"/);
                 const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                const groupMatch = line.match(/group-title="([^"]+)"/);
-                
                 currentChannel = {
+                    id: nameMatch ? nameMatch[1].toLowerCase().replace(/\s+/g, "-") : "unknown",
                     name: nameMatch ? nameMatch[1] : "Canal Desconhecido",
                     logo: logoMatch ? logoMatch[1] : "",
-                    group: groupMatch ? groupMatch[1] : "Outros",
                 };
-            } 
-            else if (line.startsWith("http")) {
+            } else if (line.startsWith("http")) {
                 if (currentChannel.name) {
                     channels.push({
-                        id: currentChannel.name.toLowerCase().replace(/\s+/g, "-"),
-                        name: currentChannel.name,
-                        logo: currentChannel.logo,
-                        group: currentChannel.group,
+                        ...currentChannel,
                         streams: [{ url: line.trim() }],
                     });
                 }
             }
         }
-
         return channels;
     } catch (error) {
         console.error("Erro ao processar M3U:", error);
@@ -45,7 +39,7 @@ async function parseM3U() {
     }
 }
 
-// Configuração do Add-on
+// Configuração do Add-on (usando seu manifest.json)
 const builder = new addonBuilder({
     id: "com.bellaiptv",
     version: "1.0.0",
@@ -56,16 +50,26 @@ const builder = new addonBuilder({
     types: ["tv"],
 });
 
-// Manipulador de streams (canais)
+// Define como o Stremio busca os streams
 builder.defineStreamHandler(async ({ type, id }) => {
-    if (type !== "tv") return { streams: [] };
-    
     const channels = await parseM3U();
     const channel = channels.find((c) => c.id === id);
-    
-    return { 
-        streams: channel ? channel.streams : [] 
-    };
+    return { streams: channel ? channel.streams : [] };
 });
 
-module.exports = builder.getInterface();
+const addonInterface = builder.getInterface();
+
+// Cria um servidor web com Express
+const app = express();
+app.get("/manifest.json", (_, res) => res.json(addonInterface.manifest));
+app.get("/stream/:type/:id.json", (req, res) => {
+    addonInterface.stream[req.params.type](req.params.id)
+        .then((data) => res.json(data))
+        .catch((err) => res.status(500).send(err.message));
+});
+
+// Inicia o servidor na porta 7000
+const PORT = 7000;
+app.listen(PORT, () => {
+    console.log(`✅ Add-on rodando em: http://localhost:${PORT}/manifest.json`);
+});

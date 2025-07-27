@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: stremio-bella-iptv
+    runtime: node
+    startCommand: npm start
