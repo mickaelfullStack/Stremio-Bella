@@ -91,10 +91,10 @@ async function parseM3U() {
 
 // Configuração do Add-on
 const builder = new addonBuilder({
-    id: "com.plutotv",
+    id: "com.bellaiptv",
     version: "1.0.3",
-    name: "Pluto TV",
-    description: "Add-on para a lista Pluto TV com filtros por grupo",
+    name: "Bella IPTV",
+    description: "Add-on para a lista Bella IPTV com filtros por grupo",
     catalogs: [],
     resources: ["stream"],
     types: ["tv"],
@@ -153,7 +153,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
             title: channel.name,
             behaviorHints: {
                 notWebReady: true,
-                bingeGroup: `PlutoTV-${channel.group}`
+                bingeGroup: `BellaIPTV-${channel.group}`
             }
         }],
         cacheMaxAge: CACHE_TTL / 1000
